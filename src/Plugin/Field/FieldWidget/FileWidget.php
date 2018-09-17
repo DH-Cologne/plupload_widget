@@ -145,6 +145,22 @@ class FileWidget extends CoreFileWidget {
     $element['#id'] = $id . '-upload';
     $files = \Drupal\plupload\Element\PlUploadFile::valueCallback($element, $input, $form_state);
     $element['#id'] = $id_backup;
+
+    // Read cookie from JavaScript
+    // The cookie contains the relative File Path
+    $files_json = NULL;
+    $pathArray = array();
+    if (isset($_COOKIE['UploadComplete'])) {
+      $files_json = json_decode($_COOKIE['UploadComplete']);
+      setcookie('UploadComplete','', time()-3600);
+    }
+    if ($files_json != NULL) {
+      foreach ($files_json as $file) {
+        $_relPath = $file->relativePath;
+        array_push($pathArray, $_relPath);
+      }
+    }
+
     if (empty($files)) {
       return parent::value($element, $input, $form_state);;
     }
@@ -155,23 +171,36 @@ class FileWidget extends CoreFileWidget {
 
     // This files are RAW files, they are not registered
     // anywhere, so won't get deleted on CRON runs :(
-    $file = reset($files);
+    foreach ($files as $file) {
+      // Set the destination path by finding the original filename in the array of relative paths
+      $newDest = '';
+      foreach ($pathArray as $path) {
+        if (strpos($path,$file['name']) !== false) {
+          $newDest = $path;
+        }
+      }      
 
-    $destination = \Drupal::config('system.file')->get('default_scheme') . '://' . $file['name'];
-    $destination = file_stream_wrapper_uri_normalize($destination);
+      $destination = \Drupal::config('system.file')->get('default_scheme') . '://' . $newDest;
 
-    /** @var \Drupal\file\Entity\File */
-    $f = entity_create('file', array(
-      'uri' => $file['tmppath'],
-      'uid' => \Drupal::currentUser()->id(),
-      'status' => 0,
-      'filename' => drupal_basename($destination),
-      'filemime' => \Drupal::service('file.mime_type.guesser')->guess($destination),
-    ));
+      $destination = file_stream_wrapper_uri_normalize($destination);
 
-    $f->save();
+      // Create path at destination recursively
+      // TODO: Check if dir exists
+      // TODO: Check if the directory is put inside the models folder
+      $b_mkdir = mkdir(dirname($destination), 0777, true);
 
-    $return['fids'][] = $f->id();
+      /** @var \Drupal\file\Entity\File */
+      $f = entity_create('file', array(
+        'uri' => $file['tmppath'],
+        'uid' => \Drupal::currentUser()->id(),
+        'status' => 0,
+        'filename' => drupal_basename($destination),
+        'filemime' => \Drupal::service('file.mime_type.guesser')->guess($destination),
+      ));
+
+      $fc = file_copy($f, $destination);
+      $return['fids'][] = $fc->id();
+    }
 
     return $return;
   }

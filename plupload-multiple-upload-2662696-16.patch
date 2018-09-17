@@ -1,0 +1,90 @@
+diff --git a/src/Plugin/Field/FieldWidget/FileWidget.php b/src/Plugin/Field/FieldWidget/FileWidget.php
+index 46041ba..66afc5f 100644
+--- a/src/Plugin/Field/FieldWidget/FileWidget.php
++++ b/src/Plugin/Field/FieldWidget/FileWidget.php
+@@ -155,23 +155,23 @@ class FileWidget extends CoreFileWidget {
+ 
+     // This files are RAW files, they are not registered
+     // anywhere, so won't get deleted on CRON runs :(
+-    $file = reset($files);
+-
+-    $destination = \Drupal::config('system.file')->get('default_scheme') . '://' . $file['name'];
+-    $destination = file_stream_wrapper_uri_normalize($destination);
+-
+-    /** @var \Drupal\file\Entity\File */
+-    $f = entity_create('file', array(
+-      'uri' => $file['tmppath'],
+-      'uid' => \Drupal::currentUser()->id(),
+-      'status' => 0,
+-      'filename' => drupal_basename($destination),
+-      'filemime' => \Drupal::service('file.mime_type.guesser')->guess($destination),
+-    ));
+-
+-    $f->save();
+-
+-    $return['fids'][] = $f->id();
++    foreach ($files as $file) {
++
++      $destination = \Drupal::config('system.file')->get('default_scheme') . '://' . $file['name'];
++      $destination = file_stream_wrapper_uri_normalize($destination);
++
++      /** @var \Drupal\file\Entity\File */
++      $f = entity_create('file', array(
++        'uri' => $file['tmppath'],
++        'uid' => \Drupal::currentUser()->id(),
++        'status' => 0,
++        'filename' => drupal_basename($destination),
++        'filemime' => \Drupal::service('file.mime_type.guesser')->guess($destination),
++      ));
++
++      $fc = file_copy($f, $destination);
++      $return['fids'][] = $fc->id();
++    }
+ 
+     return $return;
+   }
+diff --git a/src/Plugin/Field/FieldWidget/ImageWidget.php b/src/Plugin/Field/FieldWidget/ImageWidget.php
+index 8225227..6b300aa 100644
+--- a/src/Plugin/Field/FieldWidget/ImageWidget.php
++++ b/src/Plugin/Field/FieldWidget/ImageWidget.php
+@@ -155,23 +155,23 @@ class ImageWidget extends CoreImageWidget {
+ 
+     // This files are RAW files, they are not registered
+     // anywhere, so won't get deleted on CRON runs :(
+-    $file = reset($files);
+-
+-    $destination = \Drupal::config('system.file')->get('default_scheme') . '://' . $file['name'];
+-    $destination = file_stream_wrapper_uri_normalize($destination);
+-
+-    /** @var \Drupal\file\Entity\File */
+-    $f = entity_create('file', array(
+-      'uri' => $file['tmppath'],
+-      'uid' => \Drupal::currentUser()->id(),
+-      'status' => 0,
+-      'filename' => drupal_basename($destination),
+-      'filemime' => \Drupal::service('file.mime_type.guesser')->guess($destination),
+-    ));
+-
+-    $f->save();
+-
+-    $return['fids'][] = $f->id();
++    foreach ($files as $file) {
++
++      $destination = \Drupal::config('system.file')->get('default_scheme') . '://' . $file['name'];
++      $destination = file_stream_wrapper_uri_normalize($destination);
++
++      /** @var \Drupal\file\Entity\File */
++      $f = entity_create('file', [
++        'uri' => $file['tmppath'],
++        'uid' => \Drupal::currentUser()->id(),
++        'status' => 0,
++        'filename' => drupal_basename($destination),
++        'filemime' => \Drupal::service('file.mime_type.guesser')->guess($destination),
++      ]);
++      $fc = file_copy($f, $destination);
++
++      $return['fids'][] = $fc->id();
++    }
+ 
+     return $return;
+   }

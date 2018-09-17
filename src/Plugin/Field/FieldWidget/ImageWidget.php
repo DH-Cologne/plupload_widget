@@ -155,23 +155,23 @@ class ImageWidget extends CoreImageWidget {
 
     // This files are RAW files, they are not registered
     // anywhere, so won't get deleted on CRON runs :(
-    $file = reset($files);
+    foreach ($files as $file) {
 
-    $destination = \Drupal::config('system.file')->get('default_scheme') . '://' . $file['name'];
-    $destination = file_stream_wrapper_uri_normalize($destination);
+      $destination = \Drupal::config('system.file')->get('default_scheme') . '://' . $file['name'];
+      $destination = file_stream_wrapper_uri_normalize($destination);
 
-    /** @var \Drupal\file\Entity\File */
-    $f = entity_create('file', array(
-      'uri' => $file['tmppath'],
-      'uid' => \Drupal::currentUser()->id(),
-      'status' => 0,
-      'filename' => drupal_basename($destination),
-      'filemime' => \Drupal::service('file.mime_type.guesser')->guess($destination),
-    ));
+      /** @var \Drupal\file\Entity\File */
+      $f = entity_create('file', [
+        'uri' => $file['tmppath'],
+        'uid' => \Drupal::currentUser()->id(),
+        'status' => 0,
+        'filename' => drupal_basename($destination),
+        'filemime' => \Drupal::service('file.mime_type.guesser')->guess($destination),
+      ]);
+      $fc = file_copy($f, $destination);
 
-    $f->save();
-
-    $return['fids'][] = $f->id();
+      $return['fids'][] = $fc->id();
+    }
 
     return $return;
   }

@@ -1,0 +1,46 @@
+diff --git a/assets/js/plupload_widget.js b/assets/js/plupload_widget.js
+index 22dd881..137d7cc 100644
+--- a/assets/js/plupload_widget.js
++++ b/assets/js/plupload_widget.js
+@@ -8,19 +8,7 @@
+   };
+ 
+   Drupal.plupload_widget.uploadCompleteCallback = function (up, files) {
+-    var $this = $("#" + up.settings.container);
+-    var $container = $this.closest('.form-managed-file');
+-    // If there is submit_element trigger it.
+-    var submit_element = drupalSettings.plupload[$this.attr('id')].submit_element;
+-    if (submit_element) {
+-      // Trigger the upload button.
+-      var $button = $container.find(submit_element);
+-      var $event = drupalSettings['ajax'][$button.attr('id')]['event'];
+-      $button.trigger($event);
+-      // Now hide the uploader...
+-      // the ajax throbber will show.
+-      $(up).hide();
+-    }
+   };
+ 
+ })(jQuery);
++
+diff --git a/plupload_widget.libraries.yml b/plupload_widget.libraries.yml
+index 45d9cae..67aa01e 100644
+--- a/plupload_widget.libraries.yml
++++ b/plupload_widget.libraries.yml
+@@ -2,13 +2,11 @@ plupload_widget:
+   title: 'Plupload Widget'
+   js:
+     assets/js/plupload_widget.js: {}
+-  css:
+-    theme:
+-      plupload.css: {}
+   dependencies:
+     - core/jquery
+     - core/jquery.once
+     - core/drupal
+     - core/drupalSettings
+     - core/drupal.messages
+-    - core/drupal.ajax
+\ No newline at end of file
++    - core/drupal.ajax
++
