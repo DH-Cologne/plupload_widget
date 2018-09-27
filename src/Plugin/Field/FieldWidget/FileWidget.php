@@ -122,7 +122,6 @@ class FileWidget extends CoreFileWidget {
     return $element;
   }
 
-
   /**
    * Important!! The core FILE API relies on the value callback to save the managed file,
    * not the submit handler. The submit handler is only used for file deletions.
@@ -146,24 +145,42 @@ class FileWidget extends CoreFileWidget {
     $files = \Drupal\plupload\Element\PlUploadFile::valueCallback($element, $input, $form_state);
     $element['#id'] = $id_backup;
 
+    // Whether the files should be put in another subfolder
+    $bUseSubfolder = true;
+
+    // If using another subfolder, specify the path
+    $sSubfolderPath = "models";
+    
+    // Will contain the relative paths as single string, if the cookie is availabe
+    $jsonFiles = NULL;
+    
+    // Will contain the Token, if the cookie is available
+    $sFilesToken = NULL;
+    
+    // Will contain the relative paths as array of strings
+    $aRelativePaths = array();
+
     // Read cookie from JavaScript
     // The cookie contains the relative File Path
-    $files_json = NULL;
-    $pathArray = array();
     if (isset($_COOKIE['UploadComplete'])) {
-      $files_json = json_decode($_COOKIE['UploadComplete']);
+      $jsonFiles = json_decode($_COOKIE['UploadComplete']);
       setcookie('UploadComplete','', time()-3600);
     }
-    if ($files_json != NULL) {
-      foreach ($files_json as $file) {
+    if ($jsonFiles != NULL) {
+      foreach ($jsonFiles as $file) {
         $_relPath = $file->relativePath;
-        array_push($pathArray, $_relPath);
+        array_push($aRelativePaths, $_relPath);
       }
+    }
+
+    // Read UploadToken cookie
+    if (isset($_COOKIE['UploadToken'])) {
+      $sFilesToken = json_decode($_COOKIE['UploadToken']);
     }
 
     if (empty($files)) {
       return parent::value($element, $input, $form_state);;
-    }
+    }    
 
     // During form rebuild after submit or ajax request this
     // method might be called twice, but we do not want to
@@ -173,21 +190,41 @@ class FileWidget extends CoreFileWidget {
     // anywhere, so won't get deleted on CRON runs :(
     foreach ($files as $file) {
       // Set the destination path by finding the original filename in the array of relative paths
-      $newDest = '';
-      foreach ($pathArray as $path) {
+      $relativeDestination = '';
+      foreach ($aRelativePaths as $path) {
         if (strpos($path,$file['name']) !== false) {
-          $newDest = $path;
+          $relativeDestination = $path;
         }
-      }      
+      }
 
-      $destination = \Drupal::config('system.file')->get('default_scheme') . '://' . $newDest;
+      // Remove '/' from these custom variables to prevent wrong folder movement
+      $sSubfolderPath = str_replace('/', '', $sSubfolderPath);
+      $sFilesToken = str_replace('/', '', $sFilesToken);
+
+      // Handle the cases, being:
+      // - Subfolder + Token + relative Paths
+      // - Subfolder + relative Paths
+      // - Token + relative Paths
+      // - relative Paths
+      $_DrupalDefaultScheme = \Drupal::config('system.file')->get('default_scheme') . '://';
+      if ($bUseSubfolder && strlen($sSubfolderPath) > 0) {
+        if ($sFilesToken != NULL && strlen($sFilesToken) > 0) {
+          $destination = $_DrupalDefaultScheme . $sSubfolderPath . '/' . $sFilesToken . '/' . $relativeDestination;
+        } else {
+          $destination = $_DrupalDefaultScheme . $sSubfolderPath . '/' . $relativeDestination;
+        }
+      } elseif ($sFilesToken != NULL && strlen($sFilesToken) > 0) {
+        $destination = $_DrupalDefaultScheme . $sFilesToken . '/' . $relativeDestination;
+      } else {
+        $destination = $_DrupalDefaultScheme . $relativeDestination;
+      }
 
       $destination = file_stream_wrapper_uri_normalize($destination);
 
       // Create path at destination recursively
-      // TODO: Check if dir exists
-      // TODO: Check if the directory is put inside the models folder
-      $b_mkdir = mkdir(dirname($destination), 0777, true);
+      if (!is_dir($destination)) {
+        $b_mkdir = mkdir(dirname($destination), 0777, true);
+      }
 
       /** @var \Drupal\file\Entity\File */
       $f = entity_create('file', array(
@@ -204,6 +241,4 @@ class FileWidget extends CoreFileWidget {
 
     return $return;
   }
-
-
 }
